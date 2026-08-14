@@ -20,9 +20,12 @@ const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const root = resolve(appDir, '../..')
 const staging = join(appDir, 'staging')
 const cache = join(appDir, 'staging-cache')
-const MIRROR = process.env.DSH_DESKTOP_NODE_MIRROR ?? 'https://npmmirror.com/mirrors/node/'
-// Windows resolves bare `pnpm` only through its .cmd shim.
+// Normalize the trailing slash: the listing and download URLs concatenate below.
+const MIRROR = (process.env.DSH_DESKTOP_NODE_MIRROR ?? 'https://npmmirror.com/mirrors/node/').replace(/\/?$/, '/')
+// Windows resolves bare `pnpm` only through its .cmd shim, and Node refuses to
+// spawn .cmd shims without a shell.
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const pnpmShell = process.platform === 'win32'
 
 /** Run one command, exiting loudly on failure. */
 function run(label, file, args, options = {}) {
@@ -72,7 +75,7 @@ run('deploy dsh closure', pnpm, [
   '--config.inject-workspace-packages=true',
   '--config.strict-dep-builds=false',
   join(staging, 'app'),
-], { cwd: root })
+], { cwd: root, shell: pnpmShell })
 
 if (!existsSync(dshBin)) {
   console.error(`assemble-staging: deploy did not produce ${dshBin}`)

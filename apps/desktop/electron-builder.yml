@@ -1,0 +1,31 @@
+# electron-builder layout for the dsh desktop shell. `pnpm run package` first
+# assembles staging/ (scripts/assemble-staging.mjs): the production dsh CLI
+# closure under app/ and the standalone Node binary under node/, which land in
+# the installer's resources/ through the extraResources mapping below.
+appId: ai.deepseek.dsh.desktop
+productName: dsh
+executableName: dsh
+directories:
+  output: out
+files:
+  - lib/**/*
+  - package.json
+extraResources:
+  - from: staging
+    to: .
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  artifactName: dsh-${version}-${arch}.${ext}
+  category: Development
+  maintainer: DeepSeek <oss@deepseek.com>

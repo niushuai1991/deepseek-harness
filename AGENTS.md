@@ -144,6 +144,15 @@ Docs accompany every code change: update affected README and JSDoc contracts tog
 
 `CLAUDE.md` symlinks `AGENTS.md` at root, `packages/`, and `examples/`; edit the real file. Keep each rule self-contained while linking high-level docs. Condense when clarity survives; raise a `verify-doc-budgets` ceiling when the required content genuinely needs more space.
 
+## 开发工作流：自动 Worktree 隔离
+
+### 规则
+
+1. **识别开发任务：** 当用户请求涉及修改代码或仓库内容（新增功能、修复 bug、重构、改文档/配置等），自动触发 worktree 流程
+2. **不触发的情况：** 仅查看/阅读代码、纯讨论/规划
+3. **worktree 目录：** `./.worktrees/<简短任务描述>`，例如 `./.worktrees/fix-login-bug`。该目录要被git忽略。
+4. **基准分支与合并方式** 当前分支创建 worktree，合并走 Github MR
+
 ## Vendoring policy
 
 `vendor/` packages are pinned source copies (manifest with upstream SHAs in [vendor/README.md](vendor/README.md)). Update via the sync procedure there; re-apply or retire the logged local modifications; rerun `pnpm run test && pnpm run build`.

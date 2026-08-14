@@ -1,0 +1,27 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "Desktop shell for the dsh web app: an Electron window over a loopback `dsh web` sidecar",
+  "version": "0.1.0-rc.5",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "apps/desktop"
+  },
+  "type": "module",
+  "main": "lib/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node scripts/dev.mjs",
+    "stage": "node scripts/assemble-staging.mjs",
+    "package": "pnpm run build && node scripts/assemble-staging.mjs && electron-builder"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "license": "MIT"
+}

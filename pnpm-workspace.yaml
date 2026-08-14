@@ -7,6 +7,8 @@ packages:
   - native/landlock-run/packages/*
   # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
   - apps/*
+  # Dependency-only deploy root of the desktop installer's sidecar closure.
+  - apps/desktop/deploy-root
   - website
   # The runnable demo leaves join as ONE workspace member: examples/package.json
   # declares the union of every leaf's cordis.yml plugins as workspace:*, so a
@@ -27,6 +29,10 @@ linkWorkspacePackages: true
 overrides:
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # electron-builder 26.15.3 calls @electron/get APIs added after 3.0.0
+  # (ElectronDownloadCacheMode); the release-age policy would otherwise keep
+  # resolving the range to the old 3.0.0.
+  '@electron/get': ^3.1.0
 
 peerDependencyRules:
   allowedVersions:
@@ -50,6 +56,12 @@ allowBuilds:
   node-addon-require-builtin: false
   # JSONL durability calls MoveFileExW with write-through publication on Windows.
   koffi: true
+  # The desktop shell's Electron download postinstall (apps/desktop).
+  electron: true
+  # Pulled in by electron-builder for Squirrel.Windows targets, which the
+  # desktop shell does not build (NSIS/AppImage/deb only); its script is a
+  # no-op for us, so deny it.
+  electron-winstaller: false
   # The Python runtime deploy includes the reviewed workspace postinstall that
   # restores the executable bit on node-pty's macOS spawn helper.
   '@deepseek-ai/dsh-subprocess-local@file:packages/subprocess/subprocess-local': true

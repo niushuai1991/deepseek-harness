@@ -1,0 +1,108 @@
+# Build and publish the dsh desktop installers (Windows NSIS, Linux AppImage
+# and deb) whenever code lands on dev. Each platform assembles its own staging
+# payload through apps/desktop/scripts/assemble-staging.mjs — the production
+# dsh closure plus that platform's standalone Node binary — then packs it with
+# electron-builder; the release job attaches every installer to one GitHub
+# prerelease.
+name: Desktop (dsh)
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PRIMARY_NODE_VERSION: '24'
+  DSH_TELEMETRY_DISABLED: '1'
+
+jobs:
+  build:
+    name: Build installers (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.PRIMARY_NODE_VERSION }}
+
+      - name: Configure pnpm store path
+        id: pnpm-store
+        shell: bash
+        run: |
+          store_root="$HOME/.local/share/pnpm/store"
+          echo "PNPM_CONFIG_STORE_DIR=$store_root" >> "$GITHUB_ENV"
+          store_path=$(PNPM_CONFIG_STORE_DIR="$store_root" pnpm store path --silent)
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-
+
+      - name: Install (immutable)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Package desktop installers
+        env:
+          DSH_DESKTOP_NODE_MIRROR: https://nodejs.org/dist
+        run: pnpm --dir apps/desktop run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-installers-${{ runner.os }}
+          path: |
+            apps/desktop/out/*.exe
+            apps/desktop/out/*.AppImage
+            apps/desktop/out/*.deb
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish to GitHub Releases
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          pattern: desktop-installers-*
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          tag="desktop-v${version}-dev.${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" installers/* \
+            --title "dsh desktop ${version} (dev build ${GITHUB_RUN_NUMBER})" \
+            --notes "Automated desktop installers from ${GITHUB_SHA}. The sidecar reads DEEPSEEK_API_KEY from your environment; see apps/desktop/README.md." \
+            --prerelease \
+            --target "$GITHUB_SHA"

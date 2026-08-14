@@ -19,14 +19,17 @@ for (const built of [resolve(root, 'apps/cli/lib/bin.js'), resolve(root, 'apps/w
   }
 }
 
-// Windows resolves bare `pnpm` only through its .cmd shim.
+// Windows resolves bare `pnpm` only through its .cmd shim, and Node refuses
+// to spawn .cmd shims without a shell.
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const build = spawnSync(pnpm, ['exec', 'tsc', '-p', appDir], { stdio: 'inherit' })
+const pnpmShell = process.platform === 'win32'
+const build = spawnSync(pnpm, ['exec', 'tsc', '-p', appDir], { stdio: 'inherit', shell: pnpmShell })
 if (build.status !== 0) process.exit(build.status ?? 1)
 
 const electron = spawnSync(pnpm, ['exec', 'electron', '.'], {
   cwd: appDir,
   stdio: 'inherit',
+  shell: pnpmShell,
   env: {
     ...process.env,
     DSH_DESKTOP_SIDECAR_NODE: process.execPath,

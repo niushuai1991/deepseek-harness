@@ -61,18 +61,22 @@ mkdirSync(cache, { recursive: true })
 // The sidecar closure: apps/desktop/deploy-root is a dependency-only manifest
 // unioning the dsh CLI's dependencies with the runtime peers its bundles
 // consume (the CLI's devDependencies supply those at the repository root, so
-// a plain --prod deploy of the CLI itself would drop them). Workspace
-// packages are injected from their built outputs; the deploy target runs
-// under plain Node with no pnpm state at install time. The root workspace's
-// allowBuilds keys cannot match inside the deployed lockfile (file: refs
-// rebase to the staging dir), and the whole closure is already script-reviewed
-// at the root install, so this one deploy drops the gate.
+// a plain --prod deploy of the CLI itself would drop them). The hoisted
+// linker produces a flat npm-style node_modules: every package is stored
+// once at the top level, so installer packaging dereferences no .pnpm
+// symlinks into duplicate copies. Workspace packages are injected from their
+// built outputs; the deploy target runs under plain Node with no pnpm state
+// at install time. The root workspace's allowBuilds keys cannot match inside
+// the deployed lockfile (file: refs rebase to the staging dir), and the whole
+// closure is already script-reviewed at the root install, so this one deploy
+// drops the gate.
 const dshBin = join(staging, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 run('deploy dsh closure', pnpm, [
   '--filter', '@deepseek-ai/dsh-desktop-deploy',
   'deploy',
   '--prod',
   '--config.inject-workspace-packages=true',
+  '--config.node-linker=hoisted',
   '--config.strict-dep-builds=false',
   join(staging, 'app'),
 ], { cwd: root, shell: pnpmShell })

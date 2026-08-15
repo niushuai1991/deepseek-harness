@@ -42,10 +42,17 @@ export function planSidecarSpawn(paths: SidecarPaths): SidecarSpawnPlan {
 export interface SidecarOptions {
   /** The resolved Node binary and CLI entry. */
   readonly paths: SidecarPaths
-  /** Ready-line deadline in milliseconds. @default 30000 */
+  /**
+   * Ready-line deadline in milliseconds. The first launch on Windows can take
+   * tens of seconds: real-time antivirus scans every installed file as it is
+   * first read while the profile initializes from its shipped templates.
+   * @default 120000
+   */
   readonly readyTimeoutMs?: number
   /** Retained output lines for the failure page. @default 40 */
   readonly logTailLines?: number
+  /** Persistent sink for every decoded output chunk, oldest first. */
+  readonly onOutput?: (chunk: string) => void
 }
 
 /**
@@ -87,14 +94,20 @@ export class Sidecar {
       throw new Error('sidecar spawned without a pid')
     }
     this.child = child
-    const readyTimeoutMs = this.options.readyTimeoutMs ?? 30000
+    const readyTimeoutMs = this.options.readyTimeoutMs ?? 120000
     const logTailLines = this.options.logTailLines ?? 40
+    const onOutput = this.options.onOutput
     const scanner = createReadyLineScanner()
     return await new Promise<URL>((resolve, reject) => {
       // Settlements only run asynchronously, after every handler below exists.
       let done = false
       const timeout = setTimeout(() => {
-        finish(() => reject(new Error(`sidecar not ready after ${String(readyTimeoutMs)}ms\n${this.tail.join('\n')}`)))
+        // A timed-out sidecar keeps running otherwise; tear it down so a
+        // retried start begins from a clean process.
+        finish(() => {
+          this.stop()
+          reject(new Error(`sidecar not ready after ${String(readyTimeoutMs)}ms\n${this.tail.join('\n')}`))
+        })
       }, readyTimeoutMs)
 
       /** Run exactly one settlement and detach every listener. */
@@ -112,17 +125,26 @@ export class Sidecar {
       const onStdout = (chunk: Buffer): void => {
         const text = chunk.toString('utf8')
         this.appendTail(text, logTailLines)
+        onOutput?.(text)
         const ready = scanner.push(text)
         if (ready !== undefined) finish(() => { resolve(ready) })
       }
       const onStderr = (chunk: Buffer): void => {
-        this.appendTail(chunk.toString('utf8'), logTailLines)
+        const text = chunk.toString('utf8')
+        this.appendTail(text, logTailLines)
+        onOutput?.(text)
       }
       const onError = (error: Error): void => {
-        finish(() => reject(new Error(`sidecar spawn failed: ${error.message}`)))
+        finish(() => {
+          this.stop()
+          reject(new Error(`sidecar spawn failed: ${error.message}`))
+        })
       }
       const onExit = (code: number | null): void => {
-        finish(() => reject(new Error(`sidecar exited before ready with code ${String(code)}\n${this.tail.join('\n')}`)))
+        finish(() => {
+          this.stop()
+          reject(new Error(`sidecar exited before ready with code ${String(code)}\n${this.tail.join('\n')}`))
+        })
       }
 
       stdout.on('data', onStdout)

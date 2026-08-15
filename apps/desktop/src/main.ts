@@ -6,16 +6,34 @@
  * no page of its own beyond the failure page. The window keeps
  * `contextIsolation` and the sandbox on, refuses every navigation off the
  * sidecar's loopback origin, and hands such URLs to the OS browser instead.
+ * Every sidecar output chunk is mirrored to `sidecar.log` under the user data
+ * directory so a machine that never reaches the ready line is diagnosable
+ * from that file alone.
  * @module @deepseek-ai/dsh-desktop/main
  */
 
+import { appendFileSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import { errorPageUrl } from './error-page.ts'
 import { resolveSidecarPaths } from './paths.ts'
 import { Sidecar } from './sidecar.ts'
 
+const userDataDir = app.getPath('userData')
+mkdirSync(userDataDir, { recursive: true })
+/** Mirrored sidecar output for diagnosing launches that never reach ready. */
+const sidecarLogPath = join(userDataDir, 'sidecar.log')
+
 const sidecar = new Sidecar({
   paths: resolveSidecarPaths({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, env: process.env }),
+  onOutput: (chunk) => {
+    try {
+      appendFileSync(sidecarLogPath, chunk)
+    } catch {
+      // The user data dir vanished mid-session; the in-memory tail still
+      // carries the most recent output for the failure dialog.
+    }
+  },
 })
 
 let mainWindow: BrowserWindow | undefined
@@ -40,13 +58,22 @@ if (!app.requestSingleInstanceLock()) {
 /** Start the sidecar, then open the window on its loopback origin. */
 async function boot(): Promise<void> {
   try {
+    appendFileSync(sidecarLogPath, '\n--- launch ---\n')
     const origin = await sidecar.start()
     mainWindow = createWindow(origin.toString())
   } catch (error) {
     const failure = error instanceof Error ? error.message : String(error)
-    mainWindow = createWindow(errorPageUrl(failure, sidecar.recentLog()))
-    await dialog.showErrorBox('dsh failed to start', failure)
-    app.quit()
+    const choice = await dialog.showMessageBox({
+      type: 'error',
+      title: 'dsh failed to start',
+      message: 'dsh failed to start',
+      detail: `${failure}\n\nFull sidecar log: ${sidecarLogPath}\n\nThe first launch can be slow while antivirus scans the freshly installed files; retry once it settles.`,
+      buttons: ['Retry', 'Quit'],
+      defaultId: 0,
+      cancelId: 1,
+    })
+    if (choice.response === 0) await boot()
+    else app.quit()
   }
 }
 

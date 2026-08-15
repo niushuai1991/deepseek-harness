@@ -410,9 +410,6 @@ importers:
       '@deepseek-ai/dsh-agent-loop':
         specifier: workspace:^
         version: link:../../../packages/core/agent-loop
-      '@deepseek-ai/dsh-agent-loop-testkit':
-        specifier: workspace:^
-        version: link:../../../packages/test-support/agent-loop-testkit
       '@deepseek-ai/dsh-agent-presets':
         specifier: workspace:^
         version: link:../../../packages/preset/agent-presets
@@ -470,9 +467,6 @@ importers:
       '@deepseek-ai/dsh-client-schema-form':
         specifier: workspace:^
         version: link:../../../packages/client/schema-form
-      '@deepseek-ai/dsh-client-test-runtime':
-        specifier: workspace:^
-        version: link:../../../packages/test-support/client-runtime
       '@deepseek-ai/dsh-client-ui-agent-preset':
         specifier: workspace:^
         version: link:../../../packages/client/ui-agent-preset
@@ -683,18 +677,12 @@ importers:
       '@deepseek-ai/dsh-llm-deepseek':
         specifier: workspace:^
         version: link:../../../packages/llm/llm-deepseek
-      '@deepseek-ai/dsh-llm-mock-server':
-        specifier: workspace:^
-        version: link:../../../packages/test-support/llm-mock-server
       '@deepseek-ai/dsh-llm-pi-ai':
         specifier: workspace:^
         version: link:../../../packages/llm/llm-pi-ai
       '@deepseek-ai/dsh-llm-retry':
         specifier: workspace:^
         version: link:../../../packages/llm/llm-retry
-      '@deepseek-ai/dsh-loader-smoke':
-        specifier: workspace:^
-        version: link:../../../packages/test-support/loader-smoke
       '@deepseek-ai/dsh-mcp-client':
         specifier: workspace:^
         version: link:../../../packages/mcp/mcp-client

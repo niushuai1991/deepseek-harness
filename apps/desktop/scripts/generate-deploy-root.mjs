@@ -58,12 +58,23 @@ function loadWorkspace() {
 const workspace = loadWorkspace()
 const isWorkspaceRef = (spec) => spec === 'workspace:' || spec.startsWith('workspace:')
 
+// Test-support packages enter the closure through devDependency edges but no
+// booted profile imports them; the desktop installer does not carry them.
+// dsh-sandbox-windows-acl is NOT here: it is the runtime Windows sandbox
+// provider.
+const EXCLUDED = new Set([
+  '@deepseek-ai/dsh-agent-loop-testkit',
+  '@deepseek-ai/dsh-client-test-runtime',
+  '@deepseek-ai/dsh-llm-mock-server',
+  '@deepseek-ai/dsh-loader-smoke',
+])
+
 /** Union of workspace-specifier dependency and peer names of one package. */
 function workspaceEdges(manifest) {
   const names = new Set()
   for (const field of ['dependencies', 'peerDependencies', 'devDependencies']) {
     for (const [name, spec] of Object.entries(manifest[field] ?? {})) {
-      if (isWorkspaceRef(spec) && workspace.has(name) && name !== '@deepseek-ai/dsh-desktop-deploy') names.add(name)
+      if (isWorkspaceRef(spec) && workspace.has(name) && !EXCLUDED.has(name) && name !== '@deepseek-ai/dsh-desktop-deploy') names.add(name)
     }
   }
   return names

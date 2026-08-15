@@ -14,7 +14,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "node scripts/dev.mjs",
     "stage": "node scripts/assemble-staging.mjs",
-    "package": "pnpm run build && node scripts/assemble-staging.mjs && electron-builder"
+    "package": "pnpm run build && node scripts/assemble-staging.mjs && electron-builder --publish never"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
